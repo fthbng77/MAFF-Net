@@ -5,12 +5,10 @@ Written by Jiageng Mao
 
 #include <torch/serialize/tensor.h>
 #include <vector>
-#include <THC/THC.h>
+#include <ATen/cuda/CUDAContext.h>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include "build_attention_indices_gpu.h"
-
-extern THCState *state;
 
 #define CHECK_CUDA(x) do { \
   if (!x.type().is_cuda()) { \

@@ -1,0 +1,11 @@
+.idea/
+build/
+output/
+**/__pycache__/
+*.pkl
+pcdet/version.py
+pcdet.egg-info/
+*.so
+.venv/
+data/VoD/
+wandb/

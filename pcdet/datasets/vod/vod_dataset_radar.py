@@ -794,6 +794,6 @@ if __name__ == '__main__':
             create_vod_infos(
                 dataset_cfg=dataset_cfg,
                 class_names=['Car', 'Pedestrian', 'Cyclist'],
-                data_path=ROOT_DIR / 'data' / 'vod' / 'radar_5frames',
-                save_path=ROOT_DIR / 'data' / 'vod' / 'radar_5frames'
+                data_path=ROOT_DIR / 'data' / 'VoD' / 'view_of_delft_PUBLIC' / 'radar_5frames',
+                save_path=ROOT_DIR / 'data' / 'VoD' / 'view_of_delft_PUBLIC' / 'radar_5frames'
             )
