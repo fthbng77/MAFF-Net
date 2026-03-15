@@ -53,7 +53,7 @@ MODEL:
         NUM_BEV_FEATURES: 64
 
     IMAGE_BACKBONE:
-        NAME: CQCA_cfa
+        NAME: GridDensityBEV
         DBSCAN_MAP_W: 320
         DBSCAN_MAP_H: 320
         POINTX: 51.1
