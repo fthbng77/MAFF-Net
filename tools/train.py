@@ -49,6 +49,7 @@ def parse_config():
     parser.add_argument('--num_epochs_to_eval', type=int, default=20,
                         help='number of checkpoints to be evaluated')  # 30  80
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
+    parser.add_argument('--amp', action='store_true', default=False, help='use mixed precision training (FP16)')
 
     args = parser.parse_args()
 
@@ -214,7 +215,8 @@ def main():
         lr_warmup_scheduler=lr_warmup_scheduler,
         ckpt_save_interval=args.ckpt_save_interval,
         max_ckpt_save_num=args.max_ckpt_save_num,
-        merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch
+        merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
+        use_amp=args.amp
     )
 
     if hasattr(train_set, 'use_shared_memory') and train_set.use_shared_memory:

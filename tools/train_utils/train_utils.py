@@ -10,7 +10,7 @@ from pcdet.utils import common_utils, commu_utils
 
 def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, accumulated_iter, optim_cfg,
                     rank, tbar, total_it_each_epoch, dataloader_iter, tb_log=None, leave_pbar=False, cur_epoch=None,
-                    accumulation_steps=1):
+                    accumulation_steps=1, use_amp=False, scaler=None):
     if total_it_each_epoch == len(train_loader):
         dataloader_iter = iter(train_loader)
 
@@ -45,7 +45,11 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 
         model.train()
 
-        loss, tb_dict, disp_dict = model_func(model, batch)
+        if use_amp:
+            with torch.cuda.amp.autocast():
+                loss, tb_dict, disp_dict = model_func(model, batch)
+        else:
+            loss, tb_dict, disp_dict = model_func(model, batch)
         # print(loss)
         if torch.isnan(loss):
             # print("Loss is NaN. Skipping this iteration.")
@@ -56,11 +60,21 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 
         # Scale loss by accumulation steps so the total gradient
         # over N micro-batches equals that of one large batch
-        (loss / accumulation_steps).backward()
+        scaled_loss = loss / accumulation_steps
+        if use_amp and scaler is not None:
+            scaler.scale(scaled_loss).backward()
+        else:
+            scaled_loss.backward()
 
         if (cur_it + 1) % accumulation_steps == 0:
-            clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
-            optimizer.step()
+            if use_amp and scaler is not None:
+                scaler.unscale_(optimizer)
+                clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
+                optimizer.step()
             optimizer.zero_grad()
 
         accumulated_iter += 1
@@ -99,8 +113,9 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_cfg,
                 start_epoch, total_epochs, start_iter, rank, tb_log, ckpt_save_dir, train_sampler=None,
                 lr_warmup_scheduler=None, ckpt_save_interval=1, max_ckpt_save_num=50,
-                merge_all_iters_to_one_epoch=False):
+                merge_all_iters_to_one_epoch=False, use_amp=False):
     accumulated_iter = start_iter
+    scaler = torch.cuda.amp.GradScaler() if use_amp else None
     with tqdm.trange(start_epoch, total_epochs, desc='epochs', dynamic_ncols=True, leave=(rank == 0)) as tbar:
         total_it_each_epoch = len(train_loader)
         if merge_all_iters_to_one_epoch:
@@ -128,7 +143,8 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 cur_epoch=cur_epoch,
                 total_it_each_epoch=total_it_each_epoch,
                 dataloader_iter=dataloader_iter,
-                accumulation_steps=optim_cfg.get('ACCUMULATION_STEPS', 1)
+                accumulation_steps=optim_cfg.get('ACCUMULATION_STEPS', 1),
+                use_amp=use_amp, scaler=scaler
             )
 
             # save trained model
